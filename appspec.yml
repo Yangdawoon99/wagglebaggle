@@ -3,10 +3,10 @@ os: linux
 files:
   - source: /
     destination: /var/www/html/
-    overwrite: true  # 이 옵션을 사용하지 않고도 beforeInstall 훅으로 처리할 수 있습니다.
+    overwrite: true
 
 hooks:
-  beforeInstall:
+  BeforeInstall:
     - location: scripts/delete_old_files.sh
       timeout: 300
-      runas: root  # ec2-user 대신 root로 실행하여 파일 삭제 권한을 명확히 합니다.
+      runas: root
