@@ -15,5 +15,4 @@ hooks:
   BeforeInstall:
     - location: scripts/deploy.sh
       timeout: 300
-      owner: ec2-user
       runas: ec2-user
