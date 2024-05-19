@@ -1,18 +1,12 @@
 version: 0.0
 os: linux
 files:
-  - source: /index.html  # 소스 경로를 명확히 지정
+  - source: /
     destination: /var/www/html/
-    overwrite: true
-
-permissions:
-  - object: /var/www/html/index.html  # 대상 파일에 대한 퍼미션 설정
-    pattern: "**"
-    owner: ec2-user
-    group: ec2-user
+    overwrite: true  # 이 옵션을 사용하지 않고도 beforeInstall 훅으로 처리할 수 있습니다.
 
 hooks:
-  beforeInstall:  # 훅 이름을 소문자로 수정
-    - location: scripts/deploy.sh
+  beforeInstall:
+    - location: scripts/delete_old_files.sh
       timeout: 300
-      runas: ec2-user
+      runas: root  # ec2-user 대신 root로 실행하여 파일 삭제 권한을 명확히 합니다.
