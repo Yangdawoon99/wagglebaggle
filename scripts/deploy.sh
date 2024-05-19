@@ -9,3 +9,5 @@
 
 # Restart Apache to apply changes
 sudo service httpd restart
+
+# Restart Apache to apply changes
