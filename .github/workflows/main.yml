@@ -11,10 +11,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4  # Node.js 20 사용 버전
+      uses: actions/checkout@v2  # Checkout repository
 
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v3  # Node.js 20 사용 버전
+      uses: aws-actions/configure-aws-credentials@v1  # Configure AWS credentials
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -25,21 +25,17 @@ jobs:
 
     - name: Grant execute permissions for delete script
       run: chmod +x scripts/delete_old_files.sh
-      
+
     - name: Zip files
       run: zip -r my-app.zip .
 
     - name: Upload to S3
-      env:
-        S3_BUCKET_NAME: terraform-3tier-bucket0501  # 여기서 환경 변수 직접 설정
       run: |
-        aws s3 cp --region ap-southeast-2 ./$GITHUB_SHA.zip s3://$S3_BUCKET_NAME/$GITHUB_SHA.zip
+        aws s3 cp my-app.zip s3://$S3_BUCKET_NAME/my-app.zip --region ap-southeast-2
 
     - name: Deploy to CodeDeploy
-      env:
-        S3_BUCKET_NAME: terraform-3tier-bucket0501  # 여기서 환경 변수 직접 설정
       run: |
         aws deploy create-deployment \
-          --application-name codedeploy \
-          --deployment-group-name deploygroup \
-          --s3-location bucket=$S3_BUCKET_NAME,bundleType=zip,key=$GITHUB_SHA.zip
+          --application-name your-application-name \
+          --deployment-group-name your-deployment-group-name \
+          --s3-location bucket=$S3_BUCKET_NAME,bundleType=zip,key=my-app.zip
