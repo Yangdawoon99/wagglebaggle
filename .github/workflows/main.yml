@@ -20,16 +20,29 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ap-southeast-2
 
+    - name: Set environment variables
+      run: echo "S3_BUCKET_NAME=terraform-3tier-bucket0501" >> $GITHUB_ENV
+
+    - name: Create environment file
+      run: |
+        echo "DB_HOST=db.example.com" >> .env
+        echo "DB_USER=admin" >> .env
+        echo "DB_PASS=secret" >> .env
+
     - name: Zip project files
       run: |
         zip -r $GITHUB_SHA.zip ./*
       shell: bash
 
     - name: Upload to S3
+      env:
+        S3_BUCKET_NAME: terraform-3tier-bucket0501  # 여기서 환경 변수 직접 설정
       run: |
         aws s3 cp --region ap-southeast-2 ./$GITHUB_SHA.zip s3://$S3_BUCKET_NAME/$GITHUB_SHA.zip
 
     - name: Deploy to CodeDeploy
+      env:
+        S3_BUCKET_NAME: terraform-3tier-bucket0501  # 여기서 환경 변수 직접 설정
       run: |
         aws deploy create-deployment \
           --application-name codedeploytest \
