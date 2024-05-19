@@ -23,11 +23,8 @@ jobs:
     - name: Set environment variables
       run: echo "S3_BUCKET_NAME=terraform-3tier-bucket0501" >> $GITHUB_ENV
 
-    - name: Create environment file
-      run: |
-        echo "DB_HOST=db.example.com" >> .env
-        echo "DB_USER=admin" >> .env
-        echo "DB_PASS=secret" >> .env
+    - name: Grant execute permissions for deploy script
+      run: chmod +x scripts/deploy.sh
 
     - name: Zip project files
       run: |
