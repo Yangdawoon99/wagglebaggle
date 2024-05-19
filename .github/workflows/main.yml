@@ -31,6 +31,6 @@ jobs:
     - name: Deploy to CodeDeploy
       run: |
         aws deploy create-deployment \
-          --application-name codedeploy \
-          --deployment-group-name deploygroup \
+          --application-name codedeploytest \
+          --deployment-group-name deploygrouptest \
           --s3-location bucket=terraform-3tier-bucket0501,bundleType=zip,key=your-app.zip
