@@ -23,13 +23,11 @@ jobs:
     - name: Set environment variables
       run: echo "S3_BUCKET_NAME=terraform-3tier-bucket0501" >> $GITHUB_ENV
 
-    - name: Grant execute permissions for deploy script
-      run: chmod +x scripts/deploy.sh
-
-    - name: Zip project files
-      run: |
-        zip -r $GITHUB_SHA.zip ./*
-      shell: bash
+    - name: Grant execute permissions for delete script
+      run: chmod +x scripts/delete_old_files.sh
+      
+    - name: Zip files
+      run: zip -r my-app.zip .
 
     - name: Upload to S3
       env:
