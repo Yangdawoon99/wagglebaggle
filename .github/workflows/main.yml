@@ -36,6 +36,6 @@ jobs:
     - name: Deploy to CodeDeploy
       run: |
         aws deploy create-deployment \
-          --application-name your-application-name \
-          --deployment-group-name your-deployment-group-name \
+          --application-name codedeploy \
+          --deployment-group-name deploygroup \
           --s3-location bucket=$S3_BUCKET_NAME,bundleType=zip,key=my-app.zip
