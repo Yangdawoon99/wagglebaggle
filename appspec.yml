@@ -1,18 +1,18 @@
 version: 0.0
 os: linux
 files:
-  - source: /
-    destination: /var/www/html
+  - source: /index.html  # 소스 경로를 명확히 지정
+    destination: /var/www/html/
     overwrite: true
 
 permissions:
-  - object: /
+  - object: /var/www/html/index.html  # 대상 파일에 대한 퍼미션 설정
     pattern: "**"
     owner: ec2-user
     group: ec2-user
 
 hooks:
-  BeforeInstall:
+  beforeInstall:  # 훅 이름을 소문자로 수정
     - location: scripts/deploy.sh
       timeout: 300
       runas: ec2-user
