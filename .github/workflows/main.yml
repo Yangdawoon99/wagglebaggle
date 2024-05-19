@@ -45,6 +45,6 @@ jobs:
         S3_BUCKET_NAME: terraform-3tier-bucket0501  # 여기서 환경 변수 직접 설정
       run: |
         aws deploy create-deployment \
-          --application-name codedeploytest \
-          --deployment-group-name deploygrouptest \
+          --application-name codedeploy \
+          --deployment-group-name deploygroup \
           --s3-location bucket=$S3_BUCKET_NAME,bundleType=zip,key=$GITHUB_SHA.zip
