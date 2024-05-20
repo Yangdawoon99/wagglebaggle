@@ -1,8 +1,12 @@
 {
+  "name": "your-project-name",
+  "description": "Your project description",
   "require": {
     "php": ">=7.4",
-    "some/package": "^1.0"
+    "guzzlehttp/guzzle": "^7.0"
   },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
   "scripts": {
     "post-install-cmd": [
       "php artisan some:command"
