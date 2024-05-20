@@ -45,7 +45,6 @@ jobs:
       run: |
         aws s3 cp my-app.zip s3://$S3_BUCKET_NAME/my-app.zip --region $AWS_REGION
         echo "File uploaded to S3://$S3_BUCKET_NAME/my-app.zip"
-
     - name: Deploy to CodeDeploy
       run: |
         aws deploy create-deployment \
@@ -53,7 +52,6 @@ jobs:
           --deployment-group-name deploygroup \
           --s3-location bucket=$S3_BUCKET_NAME,bundleType=zip,key=my-app.zip \
           --region $AWS_REGION
-
     - name: Verify CodeDeploy deployment
       run: |
         DEPLOYMENT_ID=$(aws deploy list-deployments --application-name codedeploy --deployment-group-name deploygroup --query 'deployments[0]' --output text --region $AWS_REGION)
