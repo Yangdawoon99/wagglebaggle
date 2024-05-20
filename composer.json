@@ -1,0 +1,11 @@
+{
+  "require": {
+    "php": ">=7.4",
+    "some/package": "^1.0"
+  },
+  "scripts": {
+    "post-install-cmd": [
+      "php artisan some:command"
+    ]
+  }
+}
