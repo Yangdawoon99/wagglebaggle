@@ -14,15 +14,19 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2  # Checkout repository
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1  # Configure AWS credentials
+    - name: Configure AWS credentials using OIDC
+      uses: aws-actions/configure-aws-credentials@v2
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
         aws-region: ap-southeast-2
 
+    - name: Verify AWS credentials
+      run: aws sts get-caller-identity
+
     - name: Set environment variables
-      run: echo "S3_BUCKET_NAME=terraform-3tier-bucket0501" >> $GITHUB_ENV
+      run: |
+        echo "S3_BUCKET_NAME=terraform-3tier-bucket0501" >> $GITHUB_ENV
+        echo "AWS_REGION=ap-southeast-2" >> $GITHUB_ENV
 
     - name: Grant execute permissions for delete script
       run: chmod +x scripts/delete_old_files.sh
@@ -30,13 +34,24 @@ jobs:
     - name: Zip files
       run: zip -r my-app.zip .
 
+    - name: Verify ZIP file creation
+      run: ls -lh my-app.zip
+
     - name: Upload to S3
       run: |
-        aws s3 cp my-app.zip s3://$S3_BUCKET_NAME/my-app.zip --region ap-southeast-2
+        aws s3 cp my-app.zip s3://$S3_BUCKET_NAME/my-app.zip --region $AWS_REGION
+        echo "File uploaded to S3://$S3_BUCKET_NAME/my-app.zip"
 
     - name: Deploy to CodeDeploy
       run: |
         aws deploy create-deployment \
           --application-name codedeploy \
           --deployment-group-name deploygroup \
-          --s3-location bucket=$S3_BUCKET_NAME,bundleType=zip,key=my-app.zip
+          --s3-location bucket=$S3_BUCKET_NAME,bundleType=zip,key=my-app.zip \
+          --region $AWS_REGION
+
+    - name: Verify CodeDeploy deployment
+      run: |
+        DEPLOYMENT_ID=$(aws deploy list-deployments --application-name codedeploy --deployment-group-name deploygroup --query 'deployments[0]' --output text --region $AWS_REGION)
+        echo "Deployment ID: $DEPLOYMENT_ID"
+        aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --region $AWS_REGION
