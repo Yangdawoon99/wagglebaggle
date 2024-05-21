@@ -65,3 +65,6 @@ jobs:
         DEPLOYMENT_ID=$(aws deploy list-deployments --application-name codedeploy --deployment-group-name deploygroup --query 'deployments[0]' --output text --region $AWS_REGION)
         echo "Deployment ID: $DEPLOYMENT_ID"
         aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --region $AWS_REGION
+
+    # - name: Install Composer dependencies
+    #   run: composer install --no-dev --optimize-autoloader
