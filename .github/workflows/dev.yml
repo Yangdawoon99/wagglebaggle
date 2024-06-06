@@ -45,6 +45,30 @@ jobs:
       run: |
         aws s3 cp my-app.zip s3://$S3_BUCKET_NAME/my-app.zip --region $AWS_REGION
         echo "File uploaded to S3://$S3_BUCKET_NAME/my-app.zip"
+
+    - name: Notify Slack for approval
+      uses: slackapi/slack-github-action@v1.23.0
+      with:
+        payload: |
+          {
+            "channel": "#deployments",
+            "text": "New deployment to production requires approval. Please review and approve."
+          }
+      env:
+        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+    - name: Wait for approval
+      id: approval
+      uses: chelnak/approve-pull-request@v2
+      with:
+        github-token: ${{ secrets.MY_GITHUB_TOKEN }}
+        wait-interval-seconds: 60
+        timeout-minutes: 30
+
+    - name: Check approval
+      if: steps.approval.outputs.approved != 'true'
+      run: exit 1
+
     - name: Deploy to CodeDeploy
       run: |
         aws deploy create-deployment \
@@ -52,8 +76,45 @@ jobs:
           --deployment-group-name dev-deploygroup \
           --s3-location bucket=$S3_BUCKET_NAME,bundleType=zip,key=my-app.zip \
           --region $AWS_REGION
+
     - name: Verify CodeDeploy deployment
       run: |
         DEPLOYMENT_ID=$(aws deploy list-deployments --application-name dev-CodeDeploy --deployment-group-name dev-deploygroup --query 'deployments[0]' --output text --region $AWS_REGION)
         echo "Deployment ID: $DEPLOYMENT_ID"
         aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --region $AWS_REGION
+
+    - name: Notify Slack deployment started
+      if: always()
+      uses: slackapi/slack-github-action@v1.23.0
+      with:
+        payload: |
+          {
+            "channel": "#deployments",
+            "text": "Deployment to production has started."
+          }
+      env:
+        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+    - name: Notify Slack deployment success
+      if: success()
+      uses: slackapi/slack-github-action@v1.23.0
+      with:
+        payload: |
+          {
+            "channel": "#deployments",
+            "text": "Deployment to production was successful."
+          }
+      env:
+        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+    - name: Notify Slack deployment failure
+      if: failure()
+      uses: slackapi/slack-github-action@v1.23.0
+      with:
+        payload: |
+          {
+            "channel": "#deployments",
+            "text": "Deployment to production failed."
+          }
+      env:
+        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
