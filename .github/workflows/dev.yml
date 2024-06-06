@@ -30,28 +30,12 @@ jobs:
     - name: Send deployment request to Slack
       run: |
         curl -X POST -H 'Content-type: application/json' --data '{
-          "text": "Deployment request for ${{ github.event.inputs.environment }} environment.",
+          "text": "Deployment request for ${{ github.event.inputs.environment }} environment. Please approve via GitHub Actions.",
           "attachments": [
             {
-              "text": "Please approve or stop the deployment.",
-              "fallback": "You are unable to choose an action",
-              "callback_id": "deploy_approval",
-              "color": "#3AA3E3",
-              "attachment_type": "default",
-              "actions": [
-                {
-                  "name": "approve",
-                  "text": "Approve",
-                  "type": "button",
-                  "value": "approve"
-                },
-                {
-                  "name": "stop",
-                  "text": "Stop",
-                  "type": "button",
-                  "value": "stop"
-                }
-              ]
+              "text": "Approve deployment here: https://github.com/Yangdawoon99/wagglebaggle/actions",
+              "fallback": "You are unable to approve the deployment",
+              "color": "#3AA3E3"
             }
           ]
         }' ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -62,10 +46,15 @@ jobs:
     steps:
     - name: Await manual approval
       run: echo "Waiting for manual approval..."
+    - name: Notify Slack for manual approval
+      run: |
+        curl -X POST -H 'Content-type: application/json' --data '{
+          "text": "Manual approval required for ${{ github.event.inputs.environment }} environment deployment. Please approve via GitHub Actions."
+        }' ${{ secrets.SLACK_WEBHOOK_URL }}
 
   deploy:
     runs-on: ubuntu-latest
-    needs: [request-approval, manual-approval]
+    needs: [manual-approval]
     if: github.event.inputs.approve == 'true'
     environment: ${{ github.event.inputs.environment }}
 
@@ -83,6 +72,12 @@ jobs:
     - name: Verify AWS credentials
       run: aws sts get-caller-identity
 
+    - name: Notify Slack - Deployment Started
+      run: |
+        curl -X POST -H 'Content-type: application/json' --data '{
+          "text": "Deployment to ${{ github.event.inputs.environment }} environment has started."
+        }' ${{ secrets.SLACK_WEBHOOK_URL }}
+
     - name: Grant execute permissions for delete script
       run: chmod +x scripts/delete_old_files.sh
 
@@ -98,12 +93,13 @@ jobs:
         echo "File uploaded to S3://$S3_BUCKET_NAME/my-app.zip"
       continue-on-error: true
 
-    - name: Send S3 upload notification
+    - name: Notify Slack - S3 Upload Status
       if: success() || failure()
       run: |
         status="SUCCESS"
         if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
         curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"S3 upload status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
+
     - name: Deploy to CodeDeploy
       run: |
         aws deploy create-deployment \
@@ -113,12 +109,13 @@ jobs:
           --region $AWS_REGION
       continue-on-error: true
 
-    - name: Send deployment notification
+    - name: Notify Slack - CodeDeploy Status
       if: success() || failure()
       run: |
         status="SUCCESS"
         if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
         curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"CodeDeploy status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
+
     - name: Verify CodeDeploy deployment
       run: |
         DEPLOYMENT_ID=$(aws deploy list-deployments --application-name dev-CodeDeploy --deployment-group-name dev-deploygroup --query 'deployments[0]' --output text --region $AWS_REGION)
@@ -126,9 +123,16 @@ jobs:
         aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --region $AWS_REGION
       continue-on-error: true
 
-    - name: Send verification notification
+    - name: Notify Slack - Deployment Verification Status
+      if: success() || failure()
+      run: |
+        status="SUCCESS"
+        if [ "${{ job.status }}" == "failure" }; then status="FAILURE"; fi
+        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment verification status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    - name: Notify Slack - Deployment Completed
       if: success() || failure()
       run: |
         status="SUCCESS"
         if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
-        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment verification status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
+        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment to ${{ github.event.inputs.environment }} environment has completed with status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
