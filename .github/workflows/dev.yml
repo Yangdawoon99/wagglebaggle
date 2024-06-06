@@ -11,7 +11,7 @@ env:
   SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} # 슬랙 웹훅 URL
 
 permissions:
-  id-token: write   # This is required for requesting the JWT
+  id-token: write
   contents: read    # This is required for actions/checkout
 
 jobs:
