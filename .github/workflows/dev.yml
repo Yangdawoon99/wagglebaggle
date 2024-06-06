@@ -23,68 +23,52 @@ permissions:
 jobs:
   request-approval:
     runs-on: ubuntu-latest
-    outputs:
-      approved: ${{ steps.set-output.outputs.approved }}
     steps:
-    - name: Set output to false
-      id: set-output
-      run: echo "approved=false" >> $GITHUB_ENV
-
     - name: Send deployment request to Slack
       run: |
-        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment request for ${{ github.event.inputs.environment }} environment. Please approve or stop the deployment.\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
-
+        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment request for ${{ github.event.inputs.environment }} environment. Please approve by sending 'dev deploy approve' or stop by sending 'dev deploy stop'.\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
   deploy:
     runs-on: ubuntu-latest
     needs: request-approval
-    steps:
-    - name: Check if approved
-      run: echo "approved=${{ needs.request-approval.outputs.approved }}" >> $GITHUB_ENV
+    if: ${{ github.event.inputs.approve == 'true' }}
+    environment: ${{ github.event.inputs.environment }}
 
+    steps:
     - name: Checkout code
-      if: env.approved == 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v2
 
     - name: Configure AWS credentials using OIDC
-      if: env.approved == 'true'
-      uses: aws-actions/configure-aws-credentials@v3
+      uses: aws-actions/configure-aws-credentials@v2
       with:
         role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
         role-session-name: github-actions-session
         aws-region: ${{ env.AWS_REGION }}
 
     - name: Verify AWS credentials
-      if: env.approved == 'true'
       run: aws sts get-caller-identity
 
     - name: Grant execute permissions for delete script
-      if: env.approved == 'true'
       run: chmod +x scripts/delete_old_files.sh
 
     - name: Zip files
-      if: env.approved == 'true'
       run: zip -r my-app.zip .
 
     - name: Verify ZIP file creation
-      if: env.approved == 'true'
       run: ls -lh my-app.zip
 
     - name: Upload to S3
-      if: env.approved == 'true'
       run: |
         aws s3 cp my-app.zip s3://$S3_BUCKET_NAME/my-app.zip --region $AWS_REGION
         echo "File uploaded to S3://$S3_BUCKET_NAME/my-app.zip"
       continue-on-error: true
 
     - name: Send S3 upload notification
-      if: env.approved == 'true' && (success() || failure())
+      if: success() || failure()
       run: |
         status="SUCCESS"
         if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
         curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"S3 upload status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
-
     - name: Deploy to CodeDeploy
-      if: env.approved == 'true'
       run: |
         aws deploy create-deployment \
           --application-name dev-CodeDeploy \
@@ -94,14 +78,12 @@ jobs:
       continue-on-error: true
 
     - name: Send deployment notification
-      if: env.approved == 'true' && (success() || failure())
+      if: success() || failure()
       run: |
         status="SUCCESS"
         if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
         curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"CodeDeploy status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
-
     - name: Verify CodeDeploy deployment
-      if: env.approved == 'true'
       run: |
         DEPLOYMENT_ID=$(aws deploy list-deployments --application-name dev-CodeDeploy --deployment-group-name dev-deploygroup --query 'deployments[0]' --output text --region $AWS_REGION)
         echo "Deployment ID: $DEPLOYMENT_ID"
@@ -109,9 +91,8 @@ jobs:
       continue-on-error: true
 
     - name: Send verification notification
-      if: env.approved == 'true' && (success() || failure())
+      if: success() || failure()
       run: |
         status="SUCCESS"
         if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
         curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment verification status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
-        
