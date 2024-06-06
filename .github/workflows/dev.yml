@@ -3,6 +3,10 @@ name: Deploy to AWS
 on:
   workflow_dispatch:
     inputs:
+      approve:
+        description: 'Approve deployment'
+        required: true
+        default: 'false'
       environment:
         description: 'Deployment environment'
         required: true
@@ -11,7 +15,6 @@ on:
 env:
   S3_BUCKET_NAME: "terraform-3tier-bucket0501"
   AWS_REGION: "ap-southeast-2"
-  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
 permissions:
   id-token: write
@@ -23,7 +26,7 @@ jobs:
     steps:
     - name: Send deployment request to Slack
       run: |
-        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment request for ${{ github.event.inputs.environment }} environment. Please approve by sending 'dev deploy approve' or stop by sending 'dev deploy stop'.\"}" ${{ env.SLACK_WEBHOOK_URL }}
+        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment request for ${{ github.event.inputs.environment }} environment. Please approve by sending 'dev deploy approve' or stop by sending 'dev deploy stop'.\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
 
   deploy:
     runs-on: ubuntu-latest
@@ -65,7 +68,7 @@ jobs:
       run: |
         status="SUCCESS"
         if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
-        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"S3 upload status: $status\"}" ${{ env.SLACK_WEBHOOK_URL }}
+        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"S3 upload status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
 
     - name: Deploy to CodeDeploy
       run: |
@@ -81,7 +84,7 @@ jobs:
       run: |
         status="SUCCESS"
         if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
-        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"CodeDeploy status: $status\"}" ${{ env.SLACK_WEBHOOK_URL }}
+        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"CodeDeploy status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
 
     - name: Verify CodeDeploy deployment
       run: |
@@ -95,4 +98,4 @@ jobs:
       run: |
         status="SUCCESS"
         if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
-        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment verification status: $status\"}" ${{ env.SLACK_WEBHOOK_URL }}
+        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment verification status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
