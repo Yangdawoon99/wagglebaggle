@@ -24,30 +24,20 @@ jobs:
   request-approval:
     runs-on: ubuntu-latest
     outputs:
-      approved: ${{ steps.check-approval.outputs.approved }}
+      approved: ${{ steps.set-output.outputs.approved }}
     steps:
     - name: Set output to false
       id: set-output
       run: echo "::set-output name=approved::false"
 
-    - name: Check if approved
-      id: check-approval
-      run: |
-        if [ "${{ github.event.inputs.approve }}" == "true" ]; then
-          echo "::set-output name=approved::true"
-        else
-          echo "::set-output name=approved::false"
-        fi
-
     - name: Send deployment request to Slack
-      if: steps.check-approval.outputs.approved == 'false'
       run: |
         curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment request for ${{ github.event.inputs.environment }} environment. Please approve by sending 'dev 배포승인' or stop by sending 'dev 배포중지'.\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
 
   deploy:
     runs-on: ubuntu-latest
     needs: request-approval
-    if: needs.request-approval.outputs.approved == 'true'
+    if: ${{ needs.request-approval.outputs.approved == 'true' }}
     environment: ${{ github.event.inputs.environment }}
 
     steps:
