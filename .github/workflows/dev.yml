@@ -3,6 +3,10 @@ name: Deploy to AWS
 on:
   workflow_dispatch:
     inputs:
+      approve:
+        description: 'Approve deployment'
+        required: true
+        default: 'false'
       environment:
         description: 'Deployment environment'
         required: true
