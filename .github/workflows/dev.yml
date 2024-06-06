@@ -32,7 +32,7 @@ jobs:
 
     - name: Send deployment request to Slack
       run: |
-        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment request for ${{ github.event.inputs.environment }} environment. Please approve by sending 'dev 배포승인' or stop by sending 'dev 배포중지'.\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
+        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment request for ${{ github.event.inputs.environment }} environment. Please approve by sending '명령어: dev 배포승인' or stop by sending '명령어: dev 배포중지'.\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
 
   deploy:
     runs-on: ubuntu-latest
