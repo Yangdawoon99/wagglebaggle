@@ -11,8 +11,8 @@ env:
   SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} # 슬랙 웹훅 URL
 
 permissions:
-  id-token: write
-  contents: read
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
 
 jobs:
   deploy:
@@ -46,11 +46,15 @@ jobs:
         run: |
           aws s3 cp my-app.zip s3://$S3_BUCKET_NAME/my-app.zip --region $AWS_REGION
           echo "File uploaded to S3://$S3_BUCKET_NAME/my-app.zip"
-          
-      - name: Send Slack notification
+        continue-on-error: true
+
+      - name: Send S3 upload notification to Slack
+        if: success() || failure()
         run: |
-          curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment to development environment completed successfully.\"}" $SLACK_WEBHOOK_URL
-          
+          status="SUCCESS"
+          if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
+          curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"S3 upload status: $status\"}" $SLACK_WEBHOOK_URL
+
       - name: Deploy to CodeDeploy
         run: |
           aws deploy create-deployment \
@@ -58,9 +62,25 @@ jobs:
             --deployment-group-name dev-deploygroup \
             --s3-location bucket=$S3_BUCKET_NAME,bundleType=zip,key=my-app.zip \
             --region $AWS_REGION
-            
+        continue-on-error: true
+
+      - name: Send CodeDeploy deployment notification to Slack
+        if: success() || failure()
+        run: |
+          status="SUCCESS"
+          if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
+          curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"CodeDeploy deployment status: $status\"}" $SLACK_WEBHOOK_URL
+
       - name: Verify CodeDeploy deployment
         run: |
           DEPLOYMENT_ID=$(aws deploy list-deployments --application-name dev-CodeDeploy --deployment-group-name dev-deploygroup --query 'deployments[0]' --output text --region $AWS_REGION)
           echo "Deployment ID: $DEPLOYMENT_ID"
           aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --region $AWS_REGION
+        continue-on-error: true
+
+      - name: Send deployment verification notification to Slack
+        if: success() || failure()
+        run: |
+          status="SUCCESS"
+          if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
+          curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment verification status: $status\"}" $SLACK_WEBHOOK_URL
