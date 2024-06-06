@@ -8,52 +8,59 @@ on:
 env:
   S3_BUCKET_NAME: "terraform-3tier-bucket0501"
   AWS_REGION: "ap-southeast-2"
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} # 슬랙 웹훅 URL
 
 permissions:
-  id-token: write   # This is required for requesting the JWT
-  contents: read    # This is required for actions/checkout
+  id-token: write
+  contents: read
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production
+    environment: development
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2  # Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v2  # Checkout repository
 
-    - name: Configure AWS credentials using OIDC
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
-        role-session-name: github-actions-session
-        aws-region: ${{ env.AWS_REGION }}
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          role-session-name: github-actions-session
+          aws-region: ${{ env.AWS_REGION }}
 
-    - name: Verify AWS credentials
-      run: aws sts get-caller-identity
+      - name: Verify AWS credentials
+        run: aws sts get-caller-identity
 
-    - name: Grant execute permissions for delete script
-      run: chmod +x scripts/delete_old_files.sh
+      - name: Grant execute permissions for delete script
+        run: chmod +x scripts/delete_old_files.sh
 
-    - name: Zip files
-      run: zip -r my-app.zip .
+      - name: Zip files
+        run: zip -r my-app.zip .
 
-    - name: Verify ZIP file creation
-      run: ls -lh my-app.zip
+      - name: Verify ZIP file creation
+        run: ls -lh my-app.zip
 
-    - name: Upload to S3
-      run: |
-        aws s3 cp my-app.zip s3://$S3_BUCKET_NAME/my-app.zip --region $AWS_REGION
-        echo "File uploaded to S3://$S3_BUCKET_NAME/my-app.zip"
-    - name: Deploy to CodeDeploy
-      run: |
-        aws deploy create-deployment \
-          --application-name dev-CodeDeploy \
-          --deployment-group-name dev-deploygroup \
-          --s3-location bucket=$S3_BUCKET_NAME,bundleType=zip,key=my-app.zip \
-          --region $AWS_REGION
-    - name: Verify CodeDeploy deployment
-      run: |
-        DEPLOYMENT_ID=$(aws deploy list-deployments --application-name dev-CodeDeploy --deployment-group-name dev-deploygroup --query 'deployments[0]' --output text --region $AWS_REGION)
-        echo "Deployment ID: $DEPLOYMENT_ID"
-        aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --region $AWS_REGION
+      - name: Upload to S3
+        run: |
+          aws s3 cp my-app.zip s3://$S3_BUCKET_NAME/my-app.zip --region $AWS_REGION
+          echo "File uploaded to S3://$S3_BUCKET_NAME/my-app.zip"
+          
+      - name: Send Slack notification
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment to development environment completed successfully.\"}" $SLACK_WEBHOOK_URL
+          
+      - name: Deploy to CodeDeploy
+        run: |
+          aws deploy create-deployment \
+            --application-name dev-CodeDeploy \
+            --deployment-group-name dev-deploygroup \
+            --s3-location bucket=$S3_BUCKET_NAME,bundleType=zip,key=my-app.zip \
+            --region $AWS_REGION
+            
+      - name: Verify CodeDeploy deployment
+        run: |
+          DEPLOYMENT_ID=$(aws deploy list-deployments --application-name dev-CodeDeploy --deployment-group-name dev-deploygroup --query 'deployments[0]' --output text --region $AWS_REGION)
+          echo "Deployment ID: $DEPLOYMENT_ID"
+          aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --region $AWS_REGION
