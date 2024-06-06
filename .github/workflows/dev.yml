@@ -48,8 +48,8 @@ jobs:
     - name: Deploy to CodeDeploy
       run: |
         aws deploy create-deployment \
-          --application-name codedeploy \
-          --deployment-group-name deploygroup \
+          --application-name dev-CodeDeploy \
+          --deployment-group-name dev-deploygroup \
           --s3-location bucket=$S3_BUCKET_NAME,bundleType=zip,key=my-app.zip \
           --region $AWS_REGION
     - name: Verify CodeDeploy deployment
