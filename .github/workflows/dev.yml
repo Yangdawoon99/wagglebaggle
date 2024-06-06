@@ -15,7 +15,6 @@ on:
 env:
   S3_BUCKET_NAME: "terraform-3tier-bucket0501"
   AWS_REGION: "ap-southeast-2"
-  SLACK_WEBHOOK_URL: "https://hooks.slack.com/services/your/webhook/url" # 슬랙 웹훅 URL
 
 permissions:
   id-token: write
