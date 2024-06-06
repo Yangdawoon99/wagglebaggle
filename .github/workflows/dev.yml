@@ -28,16 +28,16 @@ jobs:
     steps:
     - name: Set output to false
       id: set-output
-      run: echo "::set-output name=approved::false"
+      run: echo "approved=false" >> $GITHUB_ENV
 
     - name: Send deployment request to Slack
       run: |
-        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment request for ${{ github.event.inputs.environment }} environment. Please approve by sending '명령어: dev 배포승인' or stop by sending '명령어: dev 배포중지'.\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
+        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment request for ${{ github.event.inputs.environment }} environment. Please approve or stop the deployment.\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
 
   deploy:
     runs-on: ubuntu-latest
     needs: request-approval
-    if: ${{ needs.request-approval.outputs.approved == 'true' }}
+    if: ${{ env.approved == 'true' }}
     environment: ${{ github.event.inputs.environment }}
 
     steps:
@@ -105,4 +105,3 @@ jobs:
         status="SUCCESS"
         if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
         curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment verification status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
-        
