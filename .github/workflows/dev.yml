@@ -1,42 +1,26 @@
 name: Deploy to AWS
 
 on:
-  workflow_dispatch:
-    inputs:
-      approve:
-        description: 'Approve deployment'
-        required: true
-        default: 'false'
-      environment:
-        description: 'Deployment environment'
-        required: true
-        default: 'dev'
+  push:
+    branches:
+      - main
 
 env:
   S3_BUCKET_NAME: "terraform-3tier-bucket0501"
   AWS_REGION: "ap-southeast-2"
 
 permissions:
-  id-token: write
-  contents: read
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
 
 jobs:
-  request-approval:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Send deployment request to Slack
-      run: |
-        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment request for ${{ github.event.inputs.environment }} environment. Please approve the deployment in GitHub Actions. [Approve deployment](https://github.com/Yangdawoon99/wagglebaggle/actions)\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
-
   deploy:
     runs-on: ubuntu-latest
-    needs: request-approval
-    if: ${{ github.event.inputs.approve == 'true' }}
-    environment: ${{ github.event.inputs.environment }}
-
+    environment: production
+    
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v2  # Checkout repository
 
     - name: Configure AWS credentials using OIDC
       uses: aws-actions/configure-aws-credentials@v2
@@ -47,10 +31,6 @@ jobs:
 
     - name: Verify AWS credentials
       run: aws sts get-caller-identity
-
-    - name: Notify Slack - Deployment Started
-      run: |
-        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment to ${{ github.event.inputs.environment }} environment has started.\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
 
     - name: Grant execute permissions for delete script
       run: chmod +x scripts/delete_old_files.sh
@@ -65,48 +45,15 @@ jobs:
       run: |
         aws s3 cp my-app.zip s3://$S3_BUCKET_NAME/my-app.zip --region $AWS_REGION
         echo "File uploaded to S3://$S3_BUCKET_NAME/my-app.zip"
-      continue-on-error: true
-
-    - name: Notify Slack - S3 Upload Status
-      if: success() || failure()
-      run: |
-        status="SUCCESS"
-        if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
-        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"S3 upload status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
-
     - name: Deploy to CodeDeploy
       run: |
         aws deploy create-deployment \
-          --application-name dev-CodeDeploy \
-          --deployment-group-name dev-deploygroup \
+          --application-name codedeploy \
+          --deployment-group-name deploygroup \
           --s3-location bucket=$S3_BUCKET_NAME,bundleType=zip,key=my-app.zip \
           --region $AWS_REGION
-      continue-on-error: true
-
-    - name: Notify Slack - CodeDeploy Status
-      if: success() || failure()
-      run: |
-        status="SUCCESS"
-        if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
-        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"CodeDeploy status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
-
     - name: Verify CodeDeploy deployment
       run: |
-        DEPLOYMENT_ID=$(aws deploy list-deployments --application-name dev-CodeDeploy --deployment-group-name dev-deploygroup --query 'deployments[0]' --output text --region $AWS_REGION)
+        DEPLOYMENT_ID=$(aws deploy list-deployments --application-name codedeploy --deployment-group-name deploygroup --query 'deployments[0]' --output text --region $AWS_REGION)
         echo "Deployment ID: $DEPLOYMENT_ID"
         aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --region $AWS_REGION
-      continue-on-error: true
-
-    - name: Notify Slack - Deployment Verification Status
-      if: success() || failure()
-      run: |
-        status="SUCCESS"
-        if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
-        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment verification status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
-
-    - name: Notify Slack - Deployment Completed
-      if: success() || failure()
-      run: |
-        status="SUCCESS"
-        if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
-        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment to ${{ github.event.inputs.environment }} environment has completed with status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
