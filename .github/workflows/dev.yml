@@ -1,6 +1,9 @@
 name: Deploy to AWS
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       approve:
@@ -52,6 +55,7 @@ jobs:
             }
           ]
         }' ${{ secrets.SLACK_WEBHOOK_URL }}
+
   deploy:
     runs-on: ubuntu-latest
     needs: request-approval
@@ -93,6 +97,7 @@ jobs:
         status="SUCCESS"
         if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
         curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"S3 upload status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
+        
     - name: Deploy to CodeDeploy
       run: |
         aws deploy create-deployment \
@@ -108,6 +113,7 @@ jobs:
         status="SUCCESS"
         if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
         curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"CodeDeploy status: $status\"}" ${{ secrets.SLACK_WEBHOOK_URL }}
+        
     - name: Verify CodeDeploy deployment
       run: |
         DEPLOYMENT_ID=$(aws deploy list-deployments --application-name dev-CodeDeploy --deployment-group-name dev-deploygroup --query 'deployments[0]' --output text --region $AWS_REGION)
