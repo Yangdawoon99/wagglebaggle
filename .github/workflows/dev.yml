@@ -17,8 +17,8 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: development
-
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'development' }}
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v2  # Checkout repository
@@ -43,8 +43,9 @@ jobs:
         run: ls -lh my-app.zip
 
       - name: Send deployment request notification to Slack
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production' }}
         run: |
-          curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"배포 승인 요청\n레포지토리: Yangdawoon99/wagglebaggle\n환경: dev\n<https://github.com/Yangdawoon99/wagglebaggle/actions|여기에서 배포를 승인하세요.>\"}" $SLACK_WEBHOOK_URL
+          curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"배포 승인 요청\n레포지토리: Yangdawoon99/wagglebaggle\n환경: production\n<https://github.com/Yangdawoon99/wagglebaggle/actions|여기에서 배포를 승인하세요.>\"}" $SLACK_WEBHOOK_URL
 
       - name: Upload to S3
         run: |
