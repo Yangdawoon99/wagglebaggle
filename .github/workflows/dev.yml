@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-
+      
 env:
   S3_BUCKET_NAME: "terraform-3tier-bucket0501"
   AWS_REGION: "ap-southeast-2"
