@@ -1,10 +1,10 @@
-name: Deploy to AWS
+name: Deploy to Development
 
 on:
   push:
     branches:
       - main
-
+      
 env:
   S3_BUCKET_NAME: "terraform-3tier-bucket0501"
   AWS_REGION: "ap-southeast-2"
@@ -41,6 +41,10 @@ jobs:
 
       - name: Verify ZIP file creation
         run: ls -lh my-app.zip
+
+      - name: Send deployment start notification to Slack
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"'개발' 환경에 대한 배포가 시작되었습니다.\"}" $SLACK_WEBHOOK_URL
 
       - name: Upload to S3
         run: |
@@ -82,5 +86,10 @@ jobs:
         if: success() || failure()
         run: |
           status="SUCCESS"
-          if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
+          if [ "${{ job.status }}" == "failure"; then status="FAILURE"; fi
           curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment verification status: $status\"}" $SLACK_WEBHOOK_URL
+
+      - name: Send deployment end notification to Slack
+        if: always()
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"'개발' 환경에 대한 배포가 종료되었습니다.\"}" $SLACK_WEBHOOK_URL
