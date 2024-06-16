@@ -1,4 +1,4 @@
-name: Deploy to Development
+name: Deploy to AWS
 
 on:
   push:
@@ -17,7 +17,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: development
+    environment: production
     
     steps:
       - name: Checkout code
@@ -42,9 +42,6 @@ jobs:
       - name: Verify ZIP file creation
         run: ls -lh my-app.zip
 
-      - name: Send deployment start notification to Slack
-        run: |
-          curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"'개발' 환경에 대한 배포가 시작되었습니다.\"}" $SLACK_WEBHOOK_URL
       - name: Upload to S3
         run: |
           aws s3 cp my-app.zip s3://$S3_BUCKET_NAME/my-app.zip --region $AWS_REGION
@@ -60,8 +57,8 @@ jobs:
       - name: Deploy to CodeDeploy
         run: |
           aws deploy create-deployment \
-            --application-name dev-CodeDeploy \
-            --deployment-group-name dev-deploygroup \
+            --application-name codedeploy \
+            --deployment-group-name deploygroup \
             --s3-location bucket=$S3_BUCKET_NAME,bundleType=zip,key=my-app.zip \
             --region $AWS_REGION
         continue-on-error: true
@@ -74,7 +71,7 @@ jobs:
           curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"CodeDeploy deployment status: $status\"}" $SLACK_WEBHOOK_URL
       - name: Verify CodeDeploy deployment
         run: |
-          DEPLOYMENT_ID=$(aws deploy list-deployments --application-name dev-CodeDeploy --deployment-group-name dev-deploygroup --query 'deployments[0]' --output text --region $AWS_REGION)
+          DEPLOYMENT_ID=$(aws deploy list-deployments --application-name codedeploy --deployment-group-name deploygroup --query 'deployments[0]' --output text --region $AWS_REGION)
           echo "Deployment ID: $DEPLOYMENT_ID"
           aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --region $AWS_REGION
         continue-on-error: true
@@ -83,9 +80,5 @@ jobs:
         if: success() || failure()
         run: |
           status="SUCCESS"
-          if [ "${{ job.status }}" == "failure"; then status="FAILURE"; fi
+          if [ "${{ job.status }}" == "failure" ]; then status="FAILURE"; fi
           curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"Deployment verification status: $status\"}" $SLACK_WEBHOOK_URL
-      - name: Send deployment end notification to Slack
-        if: always()
-        run: |
-          curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"'개발' 환경에 대한 배포가 종료되었습니다.\"}" $SLACK_WEBHOOK_URL
